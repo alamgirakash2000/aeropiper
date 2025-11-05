@@ -6,11 +6,14 @@
 
   - `pip install piper_sdk`
   - `pip install aero-open-sdk`
+  - `pip install mujoco`
+  
 Just plug in both devices and run:
 
 ```
 python robot_connection.py
 python reach_task.py
+python aero_piper_control.py
 ```
 
 The script will automatically:
