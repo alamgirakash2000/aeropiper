@@ -261,7 +261,7 @@
 
   <worldbody>
     
-    <body name="left_base_link" childclass="left_piper" gravcomp="1" pos="0 0.40 0">
+    <body name="left_base_link" childclass="left_piper" gravcomp="1" pos="0 0.30 0.81">
       <inertial pos="-0.00979275 1.82906e-06 0.04101" quat="0.692988 -0.137524 -0.137826 0.69416" mass="0.162549" diaginertia="0.000269445 0.000227478 0.000221437" />
       <geom class="left_visual" density="0" mesh="left_base_link" material="left_gray_mat" />
       <geom class="left_collision" mesh="left_base_link" />
