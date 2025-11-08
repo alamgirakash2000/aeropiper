@@ -105,7 +105,9 @@ Uses `aero_piper/scene_right.xml` with the same control pattern.
 ## Use both hands with two arms
 
 <p align="center">
-  <img src="images/dual.png" alt="Dual setup" width="60%"/>
+  <img src="images/dual_1.png" alt="Dual 1" width="45%"/>
+  <img src="images/dual_2.png" alt="Dual 2" width="45%"/>
+  <br/>
 </p>
 
 Run the dual-arm+dual-hand simulation:
