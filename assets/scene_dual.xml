@@ -31,13 +31,6 @@
       <!-- Second mount point for left robot -->
     </body>
 
-    <!-- Small cubes on table for visual match -->
-    <body pos="0 0 0.82" name="green_cube">
-      <geom type="box" size="0.01 0.01 0.01" rgba="0 1 0 1"/>
-    </body>
-    <body pos="0.02 0 0.82" name="red_cube">
-      <geom type="box" size="0.01 0.01 0.01" rgba="1 0 0 1"/>
-    </body>
   </worldbody>
 
   <equality>

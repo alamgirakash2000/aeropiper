@@ -144,7 +144,7 @@
     </default>
 
     <default class="tetheria_rh">
-      <geom group="3" friction="0.2" solref="0.02 1.5" solimp="0.9 0.99 0.001" />
+      <geom group="3" friction="1.2 0.05 0.005" solref="0.005 1" solimp="0.95 0.99 0.0005" />
       <default class="hand_visual">
         <geom group="2" type="mesh" contype="0" conaffinity="0" density="0" material="white"/>
       </default>

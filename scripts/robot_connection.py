@@ -5,6 +5,9 @@ Robot Connection and Testing
 Just plug in and run: python3 robot_connection.py
 
 The script will automatically request sudo if needed for CAN setup.
+
+Hand gestures have been refined based on tested trajectory values for better
+accuracy and natural movement.
 """
 
 import time
@@ -25,19 +28,24 @@ def deg_to_units(degrees):
     return round(degrees * 1000)
 
 # Positions (degrees)
-HOME = [0, 0, 0, 0, 0, 0]
+HOME = [0, 0, 0, 0, 0, 20]
 POINT_A = [10, 20, -15, 0, 15, 0]
 POINT_B = [-15, 30, -25, 0, 20, 0]
-POINT_C = [20, 35, -30, 5, 25, 0]
+POINT_C = [20, 35, -30, 5, 25, -10]
 POINT_D = [-10, 25, -20, -5, 18, 0]
 
-# Gestures (7 DOF)
+# Gestures (7 DOF) - Tuned values from working trajectory
+# Format: [j0, j1, j2, j3_index, j4_middle, j5_ring, j6_pinkie]
 OPEN = [0, 0, 0, 0, 0, 0, 0]
-PINCH = [45, 45, 45, 0, 0, 0, 20]
-PEACE = [60, 30, 0, 0, 60, 60, 0]
-POINT = [60, 30, 0, 60, 60, 60, 0]
-THUMBS = [0, 0, 60, 60, 60, 60, 45]
-FIST = [70, 40, 70, 70, 70, 70, 0]
+PINCH_INDEX = [75, 25, 30, 50, 0, 0, 0]  # Index finger pinch
+PINCH_MIDDLE = [83, 42, 23, 0, 50, 0, 0]  # Middle finger pinch
+PINCH_RING = [100, 42, 23, 0, 0, 52, 0]  # Ring finger pinch
+PINCH_PINKIE = [100, 35, 23, 0, 0, 0, 50]  # Pinkie finger pinch
+PEACE = [90, 45, 60, 0, 0, 90, 90]  # Index & middle extended, rest closed
+ROCKSTAR = [0, 0, 0, 0, 90, 90, 0]  # Index & pinkie extended, middle & ring closed
+POINT = [60, 30, 60, 0, 60, 60, 60]  # Only index extended
+THUMBS = [0, 0, 0, 90, 90, 90, 90]  # Thumb up, all fingers closed
+FIST = [90, 50, 90, 90, 90, 90, 90]  # All closed tight
 
 piper = None
 hand = None
@@ -160,6 +168,9 @@ def init_hand():
     print("\n→ Aero Hand...")
     hand = AeroHand(port=HAND_PORT, baudrate=HAND_BAUDRATE)
     print(f"    ✓ Connected")
+    print("    → Initializing...")
+    time.sleep(1.0)  # Give hand time to be ready
+    print("    ✓ Ready")
     return hand
 
 def initialize_robots():
@@ -221,6 +232,30 @@ def go_home():
     move_arm(HOME, 12, 4, "Home position")
     print("✓ Ready for next task\n")
 
+def demo_finger_sequence():
+    """Demo individual finger pinches - can be imported"""
+    print("\n" + "=" * 70)
+    print("FINGER PINCH DEMO")
+    print("=" * 70)
+    
+    set_hand(OPEN, "Open hand")
+    time.sleep(0.5)
+    
+    fingers = [
+        (PINCH_INDEX, "Touch Index"),
+        (PINCH_MIDDLE, "Touch Middle"),
+        (PINCH_RING, "Touch Ring"),
+        (PINCH_PINKIE, "Touch Pinkie"),
+    ]
+    
+    for gest, name in fingers:
+        set_hand(gest, name)
+        time.sleep(0.5)
+        set_hand(OPEN, "Release")
+        time.sleep(0.3)
+    
+    print("✓ Finger demo complete\n")
+
 def shutdown_robots():
     """Cleanup - can be imported"""
     print("\n→ Disconnecting...")
@@ -244,11 +279,12 @@ def run_tests():
         time.sleep(1)
     
     tests = [
-        (POINT_A, PINCH, "Point A", "Pinch"),
-        (POINT_B, PEACE, "Point B", "Peace"),
-        (POINT_C, POINT, "Point C", "Point"),
-        (POINT_D, THUMBS, "Point D", "Thumbs Up"),
-        (POINT_A, FIST, "Point A", "Fist"),
+        (POINT_A, PINCH_INDEX, "Point A", "Index Pinch"),
+        (POINT_B, PEACE, "Point B", "Peace Sign"),
+        (POINT_C, ROCKSTAR, "Point C", "Rock On"),
+        (POINT_D, POINT, "Point D", "Pointing"),
+        (POINT_A, THUMBS, "Point A", "Thumbs Up"),
+        (POINT_B, FIST, "Point B", "Fist"),
     ]
     
     for i, (pos, gest, pname, gname) in enumerate(tests, 1):
