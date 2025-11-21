@@ -129,3 +129,27 @@ python scripts/dual_aero_control.py
 ```
 
 This uses `aero_piper/scene_dual.xml`, driving two independent 6‑DOF arms and two 7‑DOF tendon-driven hands with staggered gesture cycles.
+
+## Webcam Gesture Control
+
+The `gesture_control/` folder contains lightweight MuJoCo demos that mirror your hand or arm motion from a single webcam.
+
+- `gesture_control/left_hand_gesture.py`: tracks a real left hand with MediaPipe Hands and drives the AeroPiper fingers (7 DOFs). Run it with:
+
+  ```bash
+  python gesture_control/left_hand_gesture.py
+  ```
+
+- `gesture_control/left_arm_gesture.py`: tracks your upper body with MediaPipe Pose and drives the four joints that matter most for quick teleop (J1 base yaw, J2 shoulder pitch, J3 elbow flex, J6 wrist roll). Fingers stay open by default so you can focus on the arm:
+
+  ```bash
+  python gesture_control/left_arm_gesture.py
+  ```
+
+- `gesture_control/left_combo_gesture.py`: shares a single webcam feed and mirrored preview window between both trackers so you can teleoperate all 13 DOFs (6 arm joints + 7 tendons) at once:
+
+  ```bash
+  python gesture_control/left_combo_gesture.py
+  ```
+
+All scripts mirror the webcam preview by default (toggle with `--no-mirror-preview`) and accept `--camera-index`, `--print-only`, smoothing/deadband flags, plus `--max-step` (for arm motion) to clamp sudden pose spikes. Make sure the `opencv-python` and `mediapipe` packages are installed and that the webcam can see your full left arm.

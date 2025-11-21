@@ -1,6 +1,7 @@
 import os
 import time
-from typing import Optional, Tuple
+import warnings
+from typing import Callable, Optional, Tuple
 
 try:
     import cv2  # type: ignore[import]
@@ -21,6 +22,12 @@ except ImportError as exc:
     ) from exc
 
 import numpy as np
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    message="SymbolDatabase.GetPrototype",
+)
 
 MP_HANDS = mp.solutions.hands
 MP_DRAW = mp.solutions.drawing_utils
@@ -50,15 +57,20 @@ class HandGestureController:
         self,
         camera_index: int = 0,
         show_preview: bool = True,
+        mirror_preview: bool = True,
         smoothing: float = 0.35,
         idle_decay: float = 0.97,
+        frame_provider: Optional[Callable[[], Optional[np.ndarray]]] = None,
     ):
         self._camera_index = camera_index
         self._show_preview = show_preview
+        self._mirror_preview = mirror_preview
         self._alpha = float(np.clip(smoothing, 0.0, 1.0))
         self._idle_decay = float(np.clip(idle_decay, 0.80, 0.999))
         self._preview_window = "AeroPiper Left Hand"
-        self._capture = self._open_camera(camera_index)
+        self._frame_provider = frame_provider
+        self._owns_capture = frame_provider is None
+        self._capture = self._open_camera(camera_index) if self._owns_capture else None
         self._hands = MP_HANDS.Hands(
             static_image_mode=False,
             model_complexity=1,
@@ -76,12 +88,8 @@ class HandGestureController:
         self._thumb_raw_min = None
         self._thumb_raw_max = None
         self._thumb_calibration_samples = 0
+        self._last_landmarks = None
         
-        print("\n[Thumb Calibration] Starting in 1 second...")
-        print("  Move your thumb through FULL range:")
-        print("  - Fully OPEN/abducted (spread wide from palm)")
-        print("  - Fully CLOSED (pressed against palm)")
-        print("  Repeat for 3-4 seconds for best calibration\n")
 
     def _open_camera(self, index: int):
         if os.name == "nt":
@@ -143,7 +151,7 @@ class HandGestureController:
         print("  3. Repeat for 3-4 seconds\n")
 
     def close(self):
-        if self._capture is not None:
+        if self._owns_capture and self._capture is not None:
             self._capture.release()
             self._capture = None
         if hasattr(self._hands, "close"):
@@ -155,6 +163,11 @@ class HandGestureController:
                 pass
 
     def _read_frame(self) -> Optional[np.ndarray]:
+        if self._frame_provider is not None:
+            frame = self._frame_provider()
+            if frame is None:
+                return None
+            return frame
         if self._capture is None:
             return None
         ok, frame = self._capture.read()
@@ -168,6 +181,7 @@ class HandGestureController:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self._hands.process(rgb)
         if not results.multi_hand_landmarks:
+            self._last_landmarks = None
             return None, None
 
         selected = self._select_left_hand(results)
@@ -177,6 +191,7 @@ class HandGestureController:
         physical = self._landmarks_to_physical(selected)
         annotated = frame.copy()
         MP_DRAW.draw_landmarks(annotated, selected, MP_CONNECTIONS)
+        self._last_landmarks = selected
         return physical, annotated
 
     @staticmethod
@@ -325,7 +340,7 @@ class HandGestureController:
             
             # Print calibration progress
             if self._thumb_calibration_samples == 100:
-                print(f"[ThumbAbd Calibration] Min={self._thumb_raw_min:.3f}, Max={self._thumb_raw_max:.3f}")
+                pass
         
         # Remap using calibrated range with aggressive padding on minimum side
         if self._thumb_raw_min is not None and self._thumb_raw_max is not None:
@@ -367,6 +382,9 @@ class HandGestureController:
         if frame is None or not self._show_preview:
             return
         overlay = frame.copy()
+        self.annotate_frame(overlay)
+        if self._mirror_preview:
+            overlay = cv2.flip(overlay, 1)
         cv2.putText(
             overlay,
             "Left hand tracking (Q/ESC exit, R reset thumb cal)",
@@ -398,9 +416,13 @@ class HandGestureController:
                 self._stop_requested = True
             elif key == ord("r"):
                 self.reset_thumb_calibration()
-                print("Thumb abduction calibration reset.")
         except cv2.error:
             print("OpenCV preview unavailable, continuing without it.")
             self._show_preview = False
+
+    def annotate_frame(self, frame: Optional[np.ndarray]):
+        if frame is None or self._last_landmarks is None:
+            return
+        MP_DRAW.draw_landmarks(frame, self._last_landmarks, MP_CONNECTIONS)
 
 

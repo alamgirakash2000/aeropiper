@@ -18,13 +18,6 @@ HAND_LABELS = ["ThumbAbd", "Thumb1", "Thumb2", "Index", "Middle", "Ring", "Pinky
 def _load_mujoco_scene():
     model = mujoco.MjModel.from_xml_path("assets/scene_left.xml")
     data = mujoco.MjData(model)
-
-    print(f"Number of actuators: {model.nu}")
-    print(f"Actuator names: {[model.actuator(i).name for i in range(model.nu)]}")
-    ctrlrange = np.array(model.actuator_ctrlrange)
-    print("Ctrl ranges (min, max):")
-    for i in range(model.nu):
-        print(f"  {i:2d}: {model.actuator(i).name:>24s} -> {ctrlrange[i]}")
     return model, data
 
 
@@ -44,9 +37,15 @@ def _apply_deadband(values: np.ndarray, previous: np.ndarray | None, threshold: 
     return filtered
 
 
-def _print_status(values: np.ndarray, prefix: str = "[Physical DOFs]"):
-    status = " ".join(f"{name}:{value:5.1f}" for name, value in zip(HAND_LABELS, values))
-    print(f"\r{prefix} {status}", end="", flush=True)
+def _print_status(
+    physical: np.ndarray,
+    mujoco_vals: np.ndarray,
+    prefix: str = "[Hand DOFs]",
+):
+    dof_stats = " ".join(f"{name}:{value:5.1f}" for name, value in zip(HAND_LABELS, physical))
+    tendon_stats = " ".join(f"T{idx + 1}:{value:6.3f}" for idx, value in enumerate(mujoco_vals))
+    lines = f"\r{prefix} {dof_stats}\n[Tendons] {tendon_stats}"
+    print(lines, end="\033[F", flush=True)
 
 
 def run_tracking_only(
@@ -62,9 +61,10 @@ def run_tracking_only(
             physical_hand = controller.update()
             filtered = _apply_deadband(physical_hand, last_sent, update_threshold)
             last_sent = filtered
+            hand_targets = physical_to_mujoco(filtered)
             now = time.time()
             if now - last_print >= max(print_interval, 1e-3):
-                _print_status(filtered)
+                _print_status(filtered, hand_targets)
                 last_print = now
     finally:
         print()
@@ -80,11 +80,11 @@ def run_simulation(controller, update_threshold: float, print_interval: float):
             physical_hand = controller.update()
             filtered = _apply_deadband(physical_hand, last_sent, update_threshold)
             last_sent = filtered
+            hand_targets = physical_to_mujoco(filtered)
             now = time.time()
             if now - last_print >= max(print_interval, 1e-3):
-                _print_status(filtered, prefix="[Physical DOFs|Sim]")
+                _print_status(filtered, hand_targets, prefix="[Hand DOFs|Sim]")
                 last_print = now
-            hand_targets = physical_to_mujoco(filtered)
             targets = np.concatenate([arm_targets, hand_targets])
             set_positions(data, targets)
             mujoco.mj_step(model, data)
@@ -109,6 +109,11 @@ def parse_args():
         "--no-preview",
         action="store_true",
         help="Disable the OpenCV preview window if running headless.",
+    )
+    parser.add_argument(
+        "--no-mirror-preview",
+        action="store_true",
+        help="Disable mirroring in the preview window.",
     )
     parser.add_argument(
         "--smoothing",
@@ -143,6 +148,7 @@ def main():
         controller = HandGestureController(
             camera_index=args.camera_index,
             show_preview=not args.no_preview,
+            mirror_preview=not args.no_mirror_preview,
             smoothing=args.smoothing,
         )
         threshold = max(args.update_threshold, 0.0)
